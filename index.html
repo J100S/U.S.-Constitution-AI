@@ -1,458 +1,504 @@
-<!DOCTYPE html>
+#!/usr/bin/env python3
+"""
+Constitution Q&A - Flask app powered by Claude (Anthropic API)
+Run with: python app.py
+Then open: http://localhost:5000
+"""
+
+import json
+import os
+from flask import Flask, request, jsonify, render_template_string
+import anthropic
+
+app = Flask(__name__)
+client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+
+HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Constitution Q&A - Powered by Neural Network</title>
+    <title>Constitution Q&A</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300&display=swap');
+
+        :root {
+            --parchment: #f5efe0;
+            --ink: #1a1208;
+            --seal-red: #8b1a1a;
+            --gold: #c8952a;
+            --aged: #d4c5a0;
+            --shadow: rgba(26, 18, 8, 0.15);
         }
 
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Source Serif 4', Georgia, serif;
+            background: #2c1a0e;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            background-image:
+                radial-gradient(ellipse at 20% 50%, rgba(139, 26, 26, 0.15) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(200, 149, 42, 0.1) 0%, transparent 50%);
         }
 
         .container {
             width: 100%;
-            max-width: 900px;
-            height: 90vh;
-            max-height: 800px;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 860px;
+            height: 92vh;
+            max-height: 820px;
+            background: var(--parchment);
+            border-radius: 4px;
+            box-shadow:
+                0 0 0 1px var(--gold),
+                0 0 0 4px #2c1a0e,
+                0 0 0 5px var(--gold),
+                0 30px 80px rgba(0,0,0,0.6);
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            position: relative;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 10;
+            opacity: 0.5;
         }
 
         .header {
-            background: linear-gradient(135deg, #003366 0%, #004488 100%);
-            color: white;
-            padding: 25px;
+            background: var(--ink);
+            color: var(--aged);
+            padding: 22px 30px;
             text-align: center;
-            border-bottom: 3px solid #002244;
+            border-bottom: 3px solid var(--gold);
+            position: relative;
+            overflow: hidden;
         }
 
+        .header::before, .header::after {
+            content: '✦';
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--gold);
+            font-size: 20px;
+            opacity: 0.6;
+        }
+        .header::before { left: 20px; }
+        .header::after { right: 20px; }
+
         .header h1 {
-            font-size: 28px;
-            margin-bottom: 5px;
-            font-weight: 600;
+            font-family: 'Playfair Display', serif;
+            font-size: 26px;
+            font-weight: 900;
+            letter-spacing: 0.05em;
+            color: var(--parchment);
         }
 
         .header p {
-            font-size: 13px;
-            opacity: 0.9;
+            font-size: 11px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-top: 4px;
         }
 
         .chat-container {
             flex: 1;
             overflow-y: auto;
-            padding: 25px;
-            background: #f8f9fb;
+            padding: 24px;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 16px;
         }
 
-        .message {
-            display: flex;
-            gap: 12px;
-            animation: slideIn 0.3s ease-out;
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .message.user {
-            justify-content: flex-end;
-        }
+        .message { display: flex; gap: 10px; }
+        .message.user { justify-content: flex-end; }
 
         .message-content {
-            max-width: 70%;
-            padding: 12px 16px;
-            border-radius: 12px;
+            max-width: 75%;
+            padding: 12px 18px;
             word-wrap: break-word;
+            line-height: 1.65;
+            font-size: 14px;
+            animation: fadeUp 0.3s ease-out;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .message.user .message-content {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-bottom-right-radius: 2px;
+            background: var(--ink);
+            color: var(--aged);
+            border-radius: 12px 12px 2px 12px;
+            font-style: italic;
         }
 
         .message.assistant .message-content {
             background: white;
-            color: #333;
-            border: 1px solid #e0e0e0;
-            border-bottom-left-radius: 2px;
+            color: var(--ink);
+            border-radius: 12px 12px 12px 2px;
+            border: 1px solid var(--aged);
+            box-shadow: 0 2px 8px var(--shadow);
         }
 
-        .response-section {
-            background: white;
-            border: 1px solid #e0e0e0;
-            border-radius: 12px;
-            padding: 16px;
-            margin-top: 8px;
-        }
+        .response-section { padding: 4px 0; }
 
-        .section-title {
+        .section-label {
+            font-family: 'Playfair Display', serif;
+            font-size: 11px;
             font-weight: 700;
-            color: #003366;
-            margin-bottom: 8px;
-            font-size: 14px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--seal-red);
+            margin-bottom: 4px;
         }
 
         .section-name {
-            font-size: 13px;
-            color: #667eea;
+            font-family: 'Playfair Display', serif;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--ink);
             margin-bottom: 10px;
-            font-weight: 600;
         }
 
         .section-text {
-            font-size: 13px;
-            line-height: 1.6;
-            color: #555;
-            margin-bottom: 12px;
-            max-height: 150px;
+            font-size: 12.5px;
+            line-height: 1.7;
+            color: #4a3820;
+            background: var(--parchment);
+            padding: 12px 14px;
+            border-radius: 4px;
+            border-left: 3px solid var(--gold);
+            margin-bottom: 14px;
+            max-height: 140px;
             overflow-y: auto;
-            background: #f5f5f5;
-            padding: 10px;
-            border-radius: 6px;
-            border-left: 3px solid #667eea;
+            font-style: italic;
         }
 
-        .score-bar {
+        .relevance-row {
             display: flex;
             align-items: center;
             gap: 10px;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
 
-        .score-label {
-            font-size: 12px;
-            font-weight: 600;
-            color: #666;
-            min-width: 100px;
+        .relevance-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #888;
+            min-width: 80px;
         }
 
-        .score-bar-bg {
+        .bar-bg {
             flex: 1;
-            height: 6px;
-            background: #e0e0e0;
+            height: 5px;
+            background: var(--aged);
             border-radius: 3px;
             overflow: hidden;
         }
 
-        .score-bar-fill {
+        .bar-fill {
             height: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(90deg, var(--seal-red), var(--gold));
             border-radius: 3px;
-            transition: width 0.3s ease;
         }
 
-        .score-percent {
-            font-size: 12px;
+        .bar-pct {
+            font-size: 11px;
             font-weight: 700;
-            color: #667eea;
-            min-width: 40px;
+            color: var(--seal-red);
+            min-width: 36px;
             text-align: right;
         }
 
+        .divider {
+            border: none;
+            border-top: 1px solid var(--aged);
+            margin: 10px 0;
+        }
+
         .interpretation {
-            font-size: 13px;
-            color: #333;
-            font-weight: 500;
-            padding: 8px 0;
+            font-size: 13.5px;
+            color: var(--ink);
+            line-height: 1.65;
+        }
+
+        .welcome {
+            text-align: center;
+            padding: 20px;
+            color: #7a6040;
+        }
+
+        .welcome h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 22px;
+            color: var(--ink);
+            margin-bottom: 8px;
+        }
+
+        .welcome p { font-size: 14px; margin-bottom: 6px; }
+
+        .chips { margin-top: 14px; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+
+        .chip {
+            background: white;
+            color: var(--seal-red);
+            border: 1px solid var(--aged);
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            font-family: 'Source Serif 4', serif;
+            transition: all 0.2s;
+        }
+
+        .chip:hover {
+            background: var(--seal-red);
+            color: white;
+            border-color: var(--seal-red);
         }
 
         .input-container {
-            background: white;
-            border-top: 1px solid #e0e0e0;
-            padding: 15px;
-            display: flex;
-            gap: 10px;
-        }
-
-        .input-group {
-            flex: 1;
+            background: var(--ink);
+            border-top: 3px solid var(--gold);
+            padding: 14px 18px;
             display: flex;
             gap: 10px;
         }
 
         input[type="text"] {
             flex: 1;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 12px 16px;
+            background: rgba(245, 239, 224, 0.1);
+            border: 1px solid rgba(200, 149, 42, 0.4);
+            border-radius: 6px;
+            padding: 11px 16px;
             font-size: 14px;
-            font-family: inherit;
+            font-family: 'Source Serif 4', serif;
+            color: var(--parchment);
             transition: border-color 0.3s;
         }
 
-        input[type="text"]:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        input[type="text"]::placeholder {
-            color: #999;
-        }
+        input[type="text"]::placeholder { color: rgba(212, 197, 160, 0.5); font-style: italic; }
+        input[type="text"]:focus { outline: none; border-color: var(--gold); }
 
         button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: var(--gold);
+            color: var(--ink);
             border: none;
-            border-radius: 8px;
-            padding: 12px 24px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        button:active {
-            transform: translateY(0);
-        }
-
-        .welcome-message {
-            text-align: center;
-            color: #999;
-            font-size: 14px;
-            margin: auto;
-        }
-
-        .welcome-message h2 {
-            color: #667eea;
-            margin-bottom: 10px;
-            font-size: 18px;
-        }
-
-        .welcome-message p {
-            margin-bottom: 8px;
-        }
-
-        .suggestion {
-            display: inline-block;
-            background: #f0f4ff;
-            color: #667eea;
-            padding: 4px 12px;
             border-radius: 6px;
-            font-size: 12px;
-            margin: 3px;
+            padding: 11px 22px;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: 'Playfair Display', serif;
+            letter-spacing: 0.05em;
             cursor: pointer;
             transition: all 0.2s;
-            border: 1px solid #e0e8ff;
         }
 
-        .suggestion:hover {
-            background: #e0e8ff;
-            border-color: #667eea;
-        }
+        button:hover { background: #e0a83a; transform: translateY(-1px); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-        .loading {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            background: #999;
+        .dots { display: flex; gap: 5px; align-items: center; padding: 8px 0; }
+        .dot {
+            width: 7px; height: 7px;
+            background: var(--aged);
             border-radius: 50%;
-            animation: loading 1.4s infinite;
-            margin: 0 2px;
+            animation: pulse 1.4s infinite;
+        }
+        .dot:nth-child(2) { animation-delay: 0.2s; }
+        .dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes pulse {
+            0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
+            30% { opacity: 1; transform: scale(1); }
         }
 
-        .loading:nth-child(1) { animation-delay: 0s; }
-        .loading:nth-child(2) { animation-delay: 0.2s; }
-        .loading:nth-child(3) { animation-delay: 0.4s; }
-
-        @keyframes loading {
-            0%, 60%, 100% { opacity: 0.3; }
-            30% { opacity: 1; }
-        }
-
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--aged); border-radius: 3px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🇺🇸 Constitution Q&A</h1>
-            <p>Powered by Constitution Search</p>
-        </div>
+<div class="container">
+    <div class="header">
+        <h1>Constitution Q&amp;A</h1>
+        <p>Powered by Artificial Intelligence</p>
+    </div>
 
-        <div class="chat-container" id="chatContainer">
-            <div class="message assistant">
-                <div class="message-content">
-                    <div class="welcome-message">
-                        <h2>Welcome! 👋</h2>
-                        <p>Ask me anything about the U.S. Constitution.</p>
-                        <p style="margin-top: 15px; font-size: 13px; color: #666;">Try asking:</p>
-                        <div style="margin-top: 10px;">
-                            <span class="suggestion" onclick="askQuestion('How does Congress work?')">How does Congress work?</span>
-                            <span class="suggestion" onclick="askQuestion('What is the First Amendment?')">First Amendment</span>
-                            <span class="suggestion" onclick="askQuestion('Who is the President?')">President</span>
-                            <span class="suggestion" onclick="askQuestion('What are my rights?')">My Rights</span>
-                        </div>
+    <div class="chat-container" id="chat">
+        <div class="message assistant">
+            <div class="message-content">
+                <div class="welcome">
+                    <h2>Welcome</h2>
+                    <p>Ask anything about the United States Constitution.</p>
+                    <p style="font-size:12px; margin-top:6px; color:#aaa;">I'll find the relevant section and explain it.</p>
+                    <div class="chips">
+                        <span class="chip" onclick="ask('What is the First Amendment?')">First Amendment</span>
+                        <span class="chip" onclick="ask('How does Congress work?')">Congress</span>
+                        <span class="chip" onclick="ask('What are presidential powers?')">Presidential Powers</span>
+                        <span class="chip" onclick="ask('What are my rights if arrested?')">Rights if Arrested</span>
+                        <span class="chip" onclick="ask('How is a law made?')">How Laws Are Made</span>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <div class="input-container">
-            <div class="input-group">
-                <input 
-                    type="text" 
-                    id="questionInput" 
-                    placeholder="Ask a question about the Constitution..."
-                    onkeypress="handleKeyPress(event)"
-                >
-                <button onclick="submitQuestion()">Ask</button>
             </div>
         </div>
     </div>
 
-    <script src="constitution-data.js"></script>
-    <script>
-        const chatContainer = document.getElementById('chatContainer');
-        const questionInput = document.getElementById('questionInput');
+    <div class="input-container">
+        <input type="text" id="q" placeholder="Ask about the Constitution…" onkeypress="if(event.key==='Enter') submit()">
+        <button id="btn" onclick="submit()">Ask</button>
+    </div>
+</div>
 
-        function handleKeyPress(event) {
-            if (event.key === 'Enter') {
-                submitQuestion();
-            }
-        }
+<script>
+const chat = document.getElementById('chat');
+const input = document.getElementById('q');
+const btn = document.getElementById('btn');
 
-        function askQuestion(question) {
-            questionInput.value = question;
-            questionInput.focus();
-            setTimeout(submitQuestion, 100);
-        }
+function ask(q) {
+    input.value = q;
+    submit();
+}
 
-        function submitQuestion() {
-            const question = questionInput.value.trim();
-            if (!question) return;
+function addMsg(html, role) {
+    const wrap = document.createElement('div');
+    wrap.className = 'message ' + role;
+    const inner = document.createElement('div');
+    inner.className = 'message-content';
+    inner.innerHTML = html;
+    wrap.appendChild(inner);
+    chat.appendChild(wrap);
+    chat.scrollTop = chat.scrollHeight;
+    return wrap;
+}
 
-            // Add user message
-            addMessage(question, 'user');
-            questionInput.value = '';
-            questionInput.focus();
+function esc(t) {
+    return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
-            // Show loading
-            const loadingMsg = addMessage('<div class="loading"></div><div class="loading"></div><div class="loading"></div>', 'assistant');
+async function submit() {
+    const q = input.value.trim();
+    if (!q) return;
+    input.value = '';
+    btn.disabled = true;
 
-            // Use setTimeout to simulate async and let UI update
-            setTimeout(() => {
-                try {
-                    const data = getConstitutionAnswer(question);
-                    
-                    // Remove loading message
-                    loadingMsg.remove();
+    addMsg(esc(q), 'user');
+    const loader = addMsg('<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>', 'assistant');
 
-                    // Add assistant response
-                    addResponse(data);
+    try {
+        const res = await fetch('/ask', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({question: q})
+        });
+        const data = await res.json();
+        loader.remove();
 
-                } catch (error) {
-                    loadingMsg.remove();
-                    console.error('Error:', error);
-                    addMessage('Sorry, there was an error. Please try again.', 'assistant');
-                }
-            }, 100);
-        }
-
-        function addMessage(content, sender) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${sender}`;
-            
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'message-content';
-            contentDiv.innerHTML = content;
-            
-            messageDiv.appendChild(contentDiv);
-            chatContainer.appendChild(messageDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-            
-            return messageDiv;
-        }
-
-        function addResponse(data) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'message assistant';
-            
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'message-content';
-            
-            const responseHtml = `
+        if (data.error) {
+            addMsg('<em style="color:#c00">' + esc(data.error) + '</em>', 'assistant');
+        } else {
+            addMsg(`
                 <div class="response-section">
-                    <div class="section-title">📜 Relevant Section:</div>
-                    <div class="section-name">${escapeHtml(data.section_name)}</div>
-                    
-                    <div class="section-title">📖 Text:</div>
-                    <div class="section-text">${escapeHtml(data.section_text)}</div>
-                    
-                    <div class="score-bar">
-                        <span class="score-label">Relevance:</span>
-                        <div class="score-bar-bg">
-                            <div class="score-bar-fill" style="width: ${data.relevance_score}%"></div>
-                        </div>
-                        <span class="score-percent">${Math.round(data.relevance_score)}%</span>
+                    <div class="section-label">Relevant Section</div>
+                    <div class="section-name">${esc(data.section_name)}</div>
+                    <div class="section-label">Constitutional Text</div>
+                    <div class="section-text">${esc(data.section_text)}</div>
+                    <div class="relevance-row">
+                        <span class="relevance-label">Relevance</span>
+                        <div class="bar-bg"><div class="bar-fill" style="width:${data.relevance_score}%"></div></div>
+                        <span class="bar-pct">${Math.round(data.relevance_score)}%</span>
                     </div>
-                    
-                    <div class="interpretation">${data.interpretation}</div>
+                    <hr class="divider">
+                    <div class="interpretation">${esc(data.interpretation)}</div>
                 </div>
-            `;
-            
-            contentDiv.innerHTML = responseHtml;
-            messageDiv.appendChild(contentDiv);
-            chatContainer.appendChild(messageDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            `, 'assistant');
         }
+    } catch(e) {
+        loader.remove();
+        addMsg('<em style="color:#c00">Network error. Is the server running?</em>', 'assistant');
+    }
 
-        function escapeHtml(text) {
-            const map = {
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#039;'
-            };
-            return text.replace(/[&<>"']/g, m => map[m]);
-        }
-    </script>
+    btn.disabled = false;
+    input.focus();
+    chat.scrollTop = chat.scrollHeight;
+}
+</script>
 </body>
-</html>
+</html>"""
+
+SYSTEM_PROMPT = """You are a U.S. Constitution expert assistant. When given a question, respond ONLY with a JSON object (no markdown, no extra text) with these exact fields:
+
+{
+  "section_name": "Name of the most relevant constitutional section (e.g., 'Article I, Section 8 — Powers of Congress' or 'First Amendment')",
+  "section_text": "The actual constitutional text of that section (verbatim, as written in the Constitution)",
+  "relevance_score": <number 50-99 representing how relevant this section is to the question>,
+  "interpretation": "A clear 2-4 sentence plain-English explanation of what this section means and how it answers the question."
+}
+
+Always find the single most relevant section. Be precise with the constitutional text."""
+
+
+@app.route("/")
+def index():
+    return render_template_string(HTML)
+
+
+@app.route("/ask", methods=["POST"])
+def ask():
+    data = request.get_json()
+    question = data.get("question", "").strip()
+    if not question:
+        return jsonify({"error": "No question provided."}), 400
+
+    try:
+        message = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=1000,
+            system=SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": question}],
+        )
+        raw = message.content[0].text.strip()
+
+        # Strip markdown fences if present
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+
+        result = json.loads(raw)
+        return jsonify(result)
+
+    except json.JSONDecodeError as e:
+        return jsonify({"error": f"Failed to parse AI response: {e}"}), 500
+    except anthropic.AuthenticationError:
+        return jsonify({"error": "Invalid API key. Set ANTHROPIC_API_KEY environment variable."}), 401
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+if __name__ == "__main__":
+    print("=" * 55)
+    print("  🇺🇸  Constitution Q&A  —  http://localhost:5000")
+    print("=" * 55)
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        print("\n  ⚠️  WARNING: ANTHROPIC_API_KEY is not set!")
+        print("  Export it before running:\n")
+        print("  export ANTHROPIC_API_KEY=sk-ant-...")
+        print()
+    app.run(debug=True, port=5000)
