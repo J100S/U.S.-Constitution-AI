@@ -1,504 +1,65 @@
-#!/usr/bin/env python3
-"""
-Constitution Q&A - Flask app powered by Claude (Anthropic API)
-Run with: python app.py
-Then open: http://localhost:5000
-"""
-
-import json
-import os
-from flask import Flask, request, jsonify, render_template_string
-import anthropic
-
-app = Flask(__name__)
-client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-
-HTML = """<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Constitution Q&A</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300&display=swap');
-
-        :root {
-            --parchment: #f5efe0;
-            --ink: #1a1208;
-            --seal-red: #8b1a1a;
-            --gold: #c8952a;
-            --aged: #d4c5a0;
-            --shadow: rgba(26, 18, 8, 0.15);
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'Source Serif 4', Georgia, serif;
-            background: #2c1a0e;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            background-image:
-                radial-gradient(ellipse at 20% 50%, rgba(139, 26, 26, 0.15) 0%, transparent 60%),
-                radial-gradient(ellipse at 80% 20%, rgba(200, 149, 42, 0.1) 0%, transparent 50%);
-        }
-
-        .container {
-            width: 100%;
-            max-width: 860px;
-            height: 92vh;
-            max-height: 820px;
-            background: var(--parchment);
-            border-radius: 4px;
-            box-shadow:
-                0 0 0 1px var(--gold),
-                0 0 0 4px #2c1a0e,
-                0 0 0 5px var(--gold),
-                0 30px 80px rgba(0,0,0,0.6);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .container::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background-image:
-                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-            pointer-events: none;
-            z-index: 10;
-            opacity: 0.5;
-        }
-
-        .header {
-            background: var(--ink);
-            color: var(--aged);
-            padding: 22px 30px;
-            text-align: center;
-            border-bottom: 3px solid var(--gold);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .header::before, .header::after {
-            content: '✦';
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--gold);
-            font-size: 20px;
-            opacity: 0.6;
-        }
-        .header::before { left: 20px; }
-        .header::after { right: 20px; }
-
-        .header h1 {
-            font-family: 'Playfair Display', serif;
-            font-size: 26px;
-            font-weight: 900;
-            letter-spacing: 0.05em;
-            color: var(--parchment);
-        }
-
-        .header p {
-            font-size: 11px;
-            letter-spacing: 0.2em;
-            text-transform: uppercase;
-            color: var(--gold);
-            margin-top: 4px;
-        }
-
-        .chat-container {
-            flex: 1;
-            overflow-y: auto;
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .message { display: flex; gap: 10px; }
-        .message.user { justify-content: flex-end; }
-
-        .message-content {
-            max-width: 75%;
-            padding: 12px 18px;
-            word-wrap: break-word;
-            line-height: 1.65;
-            font-size: 14px;
-            animation: fadeUp 0.3s ease-out;
-        }
-
-        @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .message.user .message-content {
-            background: var(--ink);
-            color: var(--aged);
-            border-radius: 12px 12px 2px 12px;
-            font-style: italic;
-        }
-
-        .message.assistant .message-content {
-            background: white;
-            color: var(--ink);
-            border-radius: 12px 12px 12px 2px;
-            border: 1px solid var(--aged);
-            box-shadow: 0 2px 8px var(--shadow);
-        }
-
-        .response-section { padding: 4px 0; }
-
-        .section-label {
-            font-family: 'Playfair Display', serif;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
-            color: var(--seal-red);
-            margin-bottom: 4px;
-        }
-
-        .section-name {
-            font-family: 'Playfair Display', serif;
-            font-size: 16px;
-            font-weight: 700;
-            color: var(--ink);
-            margin-bottom: 10px;
-        }
-
-        .section-text {
-            font-size: 12.5px;
-            line-height: 1.7;
-            color: #4a3820;
-            background: var(--parchment);
-            padding: 12px 14px;
-            border-radius: 4px;
-            border-left: 3px solid var(--gold);
-            margin-bottom: 14px;
-            max-height: 140px;
-            overflow-y: auto;
-            font-style: italic;
-        }
-
-        .relevance-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 12px;
-        }
-
-        .relevance-label {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: #888;
-            min-width: 80px;
-        }
-
-        .bar-bg {
-            flex: 1;
-            height: 5px;
-            background: var(--aged);
-            border-radius: 3px;
-            overflow: hidden;
-        }
-
-        .bar-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--seal-red), var(--gold));
-            border-radius: 3px;
-        }
-
-        .bar-pct {
-            font-size: 11px;
-            font-weight: 700;
-            color: var(--seal-red);
-            min-width: 36px;
-            text-align: right;
-        }
-
-        .divider {
-            border: none;
-            border-top: 1px solid var(--aged);
-            margin: 10px 0;
-        }
-
-        .interpretation {
-            font-size: 13.5px;
-            color: var(--ink);
-            line-height: 1.65;
-        }
-
-        .welcome {
-            text-align: center;
-            padding: 20px;
-            color: #7a6040;
-        }
-
-        .welcome h2 {
-            font-family: 'Playfair Display', serif;
-            font-size: 22px;
-            color: var(--ink);
-            margin-bottom: 8px;
-        }
-
-        .welcome p { font-size: 14px; margin-bottom: 6px; }
-
-        .chips { margin-top: 14px; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
-
-        .chip {
-            background: white;
-            color: var(--seal-red);
-            border: 1px solid var(--aged);
-            padding: 5px 14px;
-            border-radius: 20px;
-            font-size: 12px;
-            cursor: pointer;
-            font-family: 'Source Serif 4', serif;
-            transition: all 0.2s;
-        }
-
-        .chip:hover {
-            background: var(--seal-red);
-            color: white;
-            border-color: var(--seal-red);
-        }
-
-        .input-container {
-            background: var(--ink);
-            border-top: 3px solid var(--gold);
-            padding: 14px 18px;
-            display: flex;
-            gap: 10px;
-        }
-
-        input[type="text"] {
-            flex: 1;
-            background: rgba(245, 239, 224, 0.1);
-            border: 1px solid rgba(200, 149, 42, 0.4);
-            border-radius: 6px;
-            padding: 11px 16px;
-            font-size: 14px;
-            font-family: 'Source Serif 4', serif;
-            color: var(--parchment);
-            transition: border-color 0.3s;
-        }
-
-        input[type="text"]::placeholder { color: rgba(212, 197, 160, 0.5); font-style: italic; }
-        input[type="text"]:focus { outline: none; border-color: var(--gold); }
-
-        button {
-            background: var(--gold);
-            color: var(--ink);
-            border: none;
-            border-radius: 6px;
-            padding: 11px 22px;
-            font-size: 13px;
-            font-weight: 700;
-            font-family: 'Playfair Display', serif;
-            letter-spacing: 0.05em;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        button:hover { background: #e0a83a; transform: translateY(-1px); }
-        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-
-        .dots { display: flex; gap: 5px; align-items: center; padding: 8px 0; }
-        .dot {
-            width: 7px; height: 7px;
-            background: var(--aged);
-            border-radius: 50%;
-            animation: pulse 1.4s infinite;
-        }
-        .dot:nth-child(2) { animation-delay: 0.2s; }
-        .dot:nth-child(3) { animation-delay: 0.4s; }
-
-        @keyframes pulse {
-            0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
-            30% { opacity: 1; transform: scale(1); }
-        }
-
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--aged); border-radius: 3px; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>U.S. Constitution AI</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-<div class="container">
-    <div class="header">
-        <h1>Constitution Q&amp;A</h1>
-        <p>Powered by Artificial Intelligence</p>
-    </div>
 
-    <div class="chat-container" id="chat">
-        <div class="message assistant">
-            <div class="message-content">
-                <div class="welcome">
-                    <h2>Welcome</h2>
-                    <p>Ask anything about the United States Constitution.</p>
-                    <p style="font-size:12px; margin-top:6px; color:#aaa;">I'll find the relevant section and explain it.</p>
-                    <div class="chips">
-                        <span class="chip" onclick="ask('What is the First Amendment?')">First Amendment</span>
-                        <span class="chip" onclick="ask('How does Congress work?')">Congress</span>
-                        <span class="chip" onclick="ask('What are presidential powers?')">Presidential Powers</span>
-                        <span class="chip" onclick="ask('What are my rights if arrested?')">Rights if Arrested</span>
-                        <span class="chip" onclick="ask('How is a law made?')">How Laws Are Made</span>
-                    </div>
-                </div>
-            </div>
+  <div class="stars-bg"></div>
+
+  <header>
+    <div class="header-stripes"></div>
+    <div class="header-inner">
+      <div class="flag-badge">🦅</div>
+      <div class="header-text">
+        <h1>U.S. Constitution AI</h1>
+        <p>The Supreme Law of the Land &middot; Est. 1787</p>
+        <div class="stars-row">
+          <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
+          <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
+          <span>★</span><span>★</span><span>★</span>
         </div>
+      </div>
     </div>
+  </header>
 
-    <div class="input-container">
-        <input type="text" id="q" placeholder="Ask about the Constitution…" onkeypress="if(event.key==='Enter') submit()">
-        <button id="btn" onclick="submit()">Ask</button>
+  <div id="chat">
+    <div class="divider">We the People</div>
+    <div class="msg ai">
+      <div class="avatar ai">§</div>
+      <div class="bubble">
+        Welcome, fellow citizen. I am your guide to the <strong>United States Constitution</strong>
+        — the supreme law of the land, forged in Philadelphia in <strong>1787</strong>.<br><br>
+        Ask me about the <strong>Articles</strong>, the <strong>Bill of Rights</strong>, any of the
+        <strong>27 Amendments</strong>, or how constitutional principles shape American life today.
+      </div>
     </div>
-</div>
+  </div>
 
-<script>
-const chat = document.getElementById('chat');
-const input = document.getElementById('q');
-const btn = document.getElementById('btn');
+  <div class="suggestions" id="suggestions">
+    <button class="suggestion" onclick="ask(this.textContent)">What does the 1st Amendment protect?</button>
+    <button class="suggestion" onclick="ask(this.textContent)">How does impeachment work?</button>
+    <button class="suggestion" onclick="ask(this.textContent)">Requirements to be President?</button>
+    <button class="suggestion" onclick="ask(this.textContent)">What is the 5th Amendment?</button>
+    <button class="suggestion" onclick="ask(this.textContent)">How are laws passed?</button>
+    <button class="suggestion" onclick="ask(this.textContent)">How can the Constitution be amended?</button>
+  </div>
 
-function ask(q) {
-    input.value = q;
-    submit();
-}
+  <div class="input-area">
+    <div class="input-row">
+      <textarea id="userInput" rows="1"
+        placeholder="Ask about the Constitution…"
+        onkeydown="handleKey(event)"
+        oninput="autoResize(this)"></textarea>
+      <button id="sendBtn" onclick="sendMessage()">Ask ↵</button>
+    </div>
+  </div>
 
-function addMsg(html, role) {
-    const wrap = document.createElement('div');
-    wrap.className = 'message ' + role;
-    const inner = document.createElement('div');
-    inner.className = 'message-content';
-    inner.innerHTML = html;
-    wrap.appendChild(inner);
-    chat.appendChild(wrap);
-    chat.scrollTop = chat.scrollHeight;
-    return wrap;
-}
+  <div class="footer-stars">★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★</div>
 
-function esc(t) {
-    return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-async function submit() {
-    const q = input.value.trim();
-    if (!q) return;
-    input.value = '';
-    btn.disabled = true;
-
-    addMsg(esc(q), 'user');
-    const loader = addMsg('<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>', 'assistant');
-
-    try {
-        const res = await fetch('/ask', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({question: q})
-        });
-        const data = await res.json();
-        loader.remove();
-
-        if (data.error) {
-            addMsg('<em style="color:#c00">' + esc(data.error) + '</em>', 'assistant');
-        } else {
-            addMsg(`
-                <div class="response-section">
-                    <div class="section-label">Relevant Section</div>
-                    <div class="section-name">${esc(data.section_name)}</div>
-                    <div class="section-label">Constitutional Text</div>
-                    <div class="section-text">${esc(data.section_text)}</div>
-                    <div class="relevance-row">
-                        <span class="relevance-label">Relevance</span>
-                        <div class="bar-bg"><div class="bar-fill" style="width:${data.relevance_score}%"></div></div>
-                        <span class="bar-pct">${Math.round(data.relevance_score)}%</span>
-                    </div>
-                    <hr class="divider">
-                    <div class="interpretation">${esc(data.interpretation)}</div>
-                </div>
-            `, 'assistant');
-        }
-    } catch(e) {
-        loader.remove();
-        addMsg('<em style="color:#c00">Network error. Is the server running?</em>', 'assistant');
-    }
-
-    btn.disabled = false;
-    input.focus();
-    chat.scrollTop = chat.scrollHeight;
-}
-</script>
+  <script src="app.js"></script>
 </body>
-</html>"""
-
-SYSTEM_PROMPT = """You are a U.S. Constitution expert assistant. When given a question, respond ONLY with a JSON object (no markdown, no extra text) with these exact fields:
-
-{
-  "section_name": "Name of the most relevant constitutional section (e.g., 'Article I, Section 8 — Powers of Congress' or 'First Amendment')",
-  "section_text": "The actual constitutional text of that section (verbatim, as written in the Constitution)",
-  "relevance_score": <number 50-99 representing how relevant this section is to the question>,
-  "interpretation": "A clear 2-4 sentence plain-English explanation of what this section means and how it answers the question."
-}
-
-Always find the single most relevant section. Be precise with the constitutional text."""
-
-
-@app.route("/")
-def index():
-    return render_template_string(HTML)
-
-
-@app.route("/ask", methods=["POST"])
-def ask():
-    data = request.get_json()
-    question = data.get("question", "").strip()
-    if not question:
-        return jsonify({"error": "No question provided."}), 400
-
-    try:
-        message = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=1000,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": question}],
-        )
-        raw = message.content[0].text.strip()
-
-        # Strip markdown fences if present
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-            raw = raw.strip()
-
-        result = json.loads(raw)
-        return jsonify(result)
-
-    except json.JSONDecodeError as e:
-        return jsonify({"error": f"Failed to parse AI response: {e}"}), 500
-    except anthropic.AuthenticationError:
-        return jsonify({"error": "Invalid API key. Set ANTHROPIC_API_KEY environment variable."}), 401
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-if __name__ == "__main__":
-    print("=" * 55)
-    print("  🇺🇸  Constitution Q&A  —  http://localhost:5000")
-    print("=" * 55)
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        print("\n  ⚠️  WARNING: ANTHROPIC_API_KEY is not set!")
-        print("  Export it before running:\n")
-        print("  export ANTHROPIC_API_KEY=sk-ant-...")
-        print()
-    app.run(debug=True, port=5000)
+</html>
