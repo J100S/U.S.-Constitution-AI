@@ -1,62 +1,26 @@
-let constitutionText = "";
-
-// Load Constitution
-fetch("constitution.txt")
-  .then(res => res.text())
-  .then(text => {
-    constitutionText = text.toLowerCase();
-    console.log("Constitution loaded 🇺🇸");
-  });
-
-// Split into chunks
-function getChunks(text) {
-  return text.split("\n\n"); // paragraphs
-}
-
-// Find best match
-function findBestMatch(query) {
-  const chunks = getChunks(constitutionText);
-  let bestChunk = "";
-  let bestScore = 0;
-
-  chunks.forEach(chunk => {
-    let score = similarity(query, chunk);
-    if (score > bestScore) {
-      bestScore = score;
-      bestChunk = chunk;
-    }
-  });
-
-  return bestChunk;
-}
-
-// Basic similarity
-function similarity(a, b) {
-  const aWords = a.toLowerCase().split(" ");
-  const bWords = b.toLowerCase().split(" ");
-
-  let match = 0;
-  aWords.forEach(word => {
-    if (bWords.includes(word)) match++;
-  });
-
-  return match / aWords.length;
-}
-
-// Chat
 function ask() {
   const input = document.getElementById("input").value;
   const chat = document.getElementById("chat");
 
-  chat.innerHTML += `<div class="user">You: ${input}</div>`;
+  if (!input.trim()) return;
+
+  chat.innerHTML += `<div class="message user">${input}</div>`;
 
   const result = findBestMatch(input);
 
-  let response = result
-    ? result.substring(0, 500) + "..."
-    : "I couldn't find that in the Constitution.";
+  let response = "I couldn't find that in the Constitution.";
 
-  chat.innerHTML += `<div class="bot">AI: ${response}</div>`;
+  if (result) {
+    let label = "🇺🇸 Constitution";
+
+    if (result.includes("amendment i")) label = "🇺🇸 Amendment I";
+    else if (result.includes("amendment ii")) label = "🇺🇸 Amendment II";
+    else if (result.includes("article i")) label = "🇺🇸 Article I";
+
+    response = `<strong>${label}</strong><br><br>${result.substring(0, 400)}...`;
+  }
+
+  chat.innerHTML += `<div class="message bot">${response}</div>`;
 
   chat.scrollTop = chat.scrollHeight;
   document.getElementById("input").value = "";
