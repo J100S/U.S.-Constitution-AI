@@ -313,7 +313,7 @@
     <div class="container">
         <div class="header">
             <h1>🇺🇸 Constitution Q&A</h1>
-            <p>Neural Network-powered answers from the U.S. Constitution</p>
+            <p>Powered by Constitution Search</p>
         </div>
 
         <div class="chat-container" id="chatContainer">
@@ -347,6 +347,7 @@
         </div>
     </div>
 
+    <script src="constitution-data.js"></script>
     <script>
         const chatContainer = document.getElementById('chatContainer');
         const questionInput = document.getElementById('questionInput');
@@ -363,7 +364,7 @@
             setTimeout(submitQuestion, 100);
         }
 
-        async function submitQuestion() {
+        function submitQuestion() {
             const question = questionInput.value.trim();
             if (!question) return;
 
@@ -375,30 +376,23 @@
             // Show loading
             const loadingMsg = addMessage('<div class="loading"></div><div class="loading"></div><div class="loading"></div>', 'assistant');
 
-            try {
-                const response = await fetch('/api/ask', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ question })
-                });
+            // Use setTimeout to simulate async and let UI update
+            setTimeout(() => {
+                try {
+                    const data = getConstitutionAnswer(question);
+                    
+                    // Remove loading message
+                    loadingMsg.remove();
 
-                if (!response.ok) throw new Error('Failed to get answer');
+                    // Add assistant response
+                    addResponse(data);
 
-                const data = await response.json();
-
-                // Remove loading message
-                loadingMsg.remove();
-
-                // Add assistant response
-                addResponse(data);
-
-            } catch (error) {
-                loadingMsg.remove();
-                console.error('Error:', error);
-                addMessage('Sorry, there was an error: ' + error.message, 'assistant');
-            }
+                } catch (error) {
+                    loadingMsg.remove();
+                    console.error('Error:', error);
+                    addMessage('Sorry, there was an error. Please try again.', 'assistant');
+                }
+            }, 100);
         }
 
         function addMessage(content, sender) {
