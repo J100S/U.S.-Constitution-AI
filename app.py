@@ -1,9 +1,10 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 import json
 from nn import CONSTITUTION_TEXT, split_into_sections, extract_text_features
 import re
+import os
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='.', template_folder='.')
 
 # Load Constitution sections
 sections = split_into_sections(CONSTITUTION_TEXT)
@@ -111,7 +112,7 @@ def calculate_relevance_score(question, section):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return send_from_directory('.', 'index.html')
 
 @app.route('/api/ask', methods=['POST'])
 def ask_question():

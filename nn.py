@@ -1,7 +1,7 @@
 import numpy as np
 import re
 import os
-
+from flask import Flask, render_template
 
 def load_constitution_from_file():
     """Load the full Constitution from the Constitution.txt file"""
@@ -22,6 +22,14 @@ CONSTITUTION = {
     "full_text": CONSTITUTION_TEXT,
 }
 
+app = Flask(__name__)
+app.config.from_object({
+    "SECRET_KEY": os.environ.get("SECRET_KEY") or "default_secret_key",
+})
+
+@app.route('/')
+def index():
+    return render_template('index.html')  # Looks for templates/index.html
 
 class NeuralNetwork:
     def __init__(self, layer_sizes):
