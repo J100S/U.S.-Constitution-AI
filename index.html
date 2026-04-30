@@ -396,7 +396,8 @@
 
             } catch (error) {
                 loadingMsg.remove();
-                addMessage('Sorry, there was an error. Please try again.', 'assistant');
+                console.error('Error:', error);
+                addMessage('Sorry, there was an error: ' + error.message, 'assistant');
             }
         }
 

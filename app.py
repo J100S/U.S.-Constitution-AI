@@ -116,39 +116,45 @@ def index():
 
 @app.route('/api/ask', methods=['POST'])
 def ask_question():
-    data = request.json
-    question = data.get('question', '').strip()
-    
-    if not question:
-        return jsonify({'error': 'Please enter a question'}), 400
-    
-    section = find_relevant_section(question)
-    relevance_score = calculate_relevance_score(question, section)
-    
-    # Truncate text
-    section_text = section['text']
-    if len(section_text) > 800:
-        section_text = section_text[:800] + "\n\n[... text truncated ...]"
-    
-    # Determine interpretation
-    if relevance_score >= 90:
-        interpretation = "✓✓ The Constitution directly and comprehensively addresses this topic."
-    elif relevance_score >= 75:
-        interpretation = "✓ The Constitution clearly addresses this topic."
-    elif relevance_score >= 65:
-        interpretation = "◆ This topic is well covered in the Constitution."
-    elif relevance_score >= 55:
-        interpretation = "◆ The Constitution addresses this topic."
-    else:
-        interpretation = "◊ This topic may require additional interpretation."
-    
-    return jsonify({
-        'question': question,
-        'section_name': section['name'],
-        'section_text': section_text,
-        'relevance_score': relevance_score,
-        'interpretation': interpretation
-    })
+    try:
+        data = request.json
+        question = data.get('question', '').strip()
+        
+        if not question:
+            return jsonify({'error': 'Please enter a question'}), 400
+        
+        section = find_relevant_section(question)
+        relevance_score = calculate_relevance_score(question, section)
+        
+        # Truncate text
+        section_text = section['text']
+        if len(section_text) > 800:
+            section_text = section_text[:800] + "\n\n[... text truncated ...]"
+        
+        # Determine interpretation
+        if relevance_score >= 90:
+            interpretation = "✓✓ The Constitution directly and comprehensively addresses this topic."
+        elif relevance_score >= 75:
+            interpretation = "✓ The Constitution clearly addresses this topic."
+        elif relevance_score >= 65:
+            interpretation = "◆ This topic is well covered in the Constitution."
+        elif relevance_score >= 55:
+            interpretation = "◆ The Constitution addresses this topic."
+        else:
+            interpretation = "◊ This topic may require additional interpretation."
+        
+        return jsonify({
+            'question': question,
+            'section_name': section['name'],
+            'section_text': section_text,
+            'relevance_score': relevance_score,
+            'interpretation': interpretation
+        })
+    except Exception as e:
+        print(f"Error in ask_question: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
