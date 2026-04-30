@@ -1,65 +1,65 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>U.S. Constitution AI</title>
-  <link rel="stylesheet" href="styles.css" />
+<meta charset="UTF-8">
+<title>🇺🇸 Constitution AI</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial;
+  background: linear-gradient(to bottom, #0a1f44, white, #b22234);
+}
+
+header {
+  background: #0a1f44;
+  color: white;
+  padding: 20px;
+  font-size: 26px;
+  text-align: center;
+  border-bottom: 4px solid #b22234;
+}
+
+#chat {
+  width: 90%;
+  max-width: 700px;
+  margin: 20px auto;
+  background: white;
+  height: 400px;
+  overflow-y: auto;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.user { color: #0a1f44; font-weight: bold; }
+.bot { color: #b22234; margin-bottom: 10px; }
+
+input {
+  width: 70%;
+  padding: 10px;
+}
+
+button {
+  padding: 10px;
+  background: #b22234;
+  color: white;
+  border: none;
+}
+</style>
 </head>
+
 <body>
 
-  <div class="stars-bg"></div>
+<header>🇺🇸 Constitution AI</header>
 
-  <header>
-    <div class="header-stripes"></div>
-    <div class="header-inner">
-      <div class="flag-badge">🦅</div>
-      <div class="header-text">
-        <h1>U.S. Constitution AI</h1>
-        <p>The Supreme Law of the Land &middot; Est. 1787</p>
-        <div class="stars-row">
-          <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
-          <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
-          <span>★</span><span>★</span><span>★</span>
-        </div>
-      </div>
-    </div>
-  </header>
+<div id="chat"></div>
 
-  <div id="chat">
-    <div class="divider">We the People</div>
-    <div class="msg ai">
-      <div class="avatar ai">§</div>
-      <div class="bubble">
-        Welcome, fellow citizen. I am your guide to the <strong>United States Constitution</strong>
-        — the supreme law of the land, forged in Philadelphia in <strong>1787</strong>.<br><br>
-        Ask me about the <strong>Articles</strong>, the <strong>Bill of Rights</strong>, any of the
-        <strong>27 Amendments</strong>, or how constitutional principles shape American life today.
-      </div>
-    </div>
-  </div>
+<center>
+<input id="input" placeholder="Ask about rights, amendments, etc">
+<button onclick="ask()">Ask</button>
+</center>
 
-  <div class="suggestions" id="suggestions">
-    <button class="suggestion" onclick="ask(this.textContent)">What does the 1st Amendment protect?</button>
-    <button class="suggestion" onclick="ask(this.textContent)">How does impeachment work?</button>
-    <button class="suggestion" onclick="ask(this.textContent)">Requirements to be President?</button>
-    <button class="suggestion" onclick="ask(this.textContent)">What is the 5th Amendment?</button>
-    <button class="suggestion" onclick="ask(this.textContent)">How are laws passed?</button>
-    <button class="suggestion" onclick="ask(this.textContent)">How can the Constitution be amended?</button>
-  </div>
+<script src="script.js"></script>
 
-  <div class="input-area">
-    <div class="input-row">
-      <textarea id="userInput" rows="1"
-        placeholder="Ask about the Constitution…"
-        onkeydown="handleKey(event)"
-        oninput="autoResize(this)"></textarea>
-      <button id="sendBtn" onclick="sendMessage()">Ask ↵</button>
-    </div>
-  </div>
-
-  <div class="footer-stars">★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★</div>
-
-  <script src="app.js"></script>
 </body>
 </html>
