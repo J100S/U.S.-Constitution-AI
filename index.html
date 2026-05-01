@@ -3,35 +3,37 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Constitution AI Chat</title>
+  <title>Constitution AI</title>
   <link rel="stylesheet" href="style.css"/>
 </head>
 
 <body>
 
+<div class="bg"></div>
+
 <div class="app">
 
-  <!-- TOP BAR -->
-  <header class="topbar">
+  <!-- HEADER -->
+  <header class="header">
     <div class="flag"></div>
     <div>
-      <h1>🇺🇸 Constitution AI</h1>
-      <p>Powered by U.S. Constitution + Wikipedia</p>
+      <h1>Constitution AI</h1>
+      <p>U.S. Constitution + Wikipedia Intelligence System</p>
     </div>
   </header>
 
-  <!-- CHAT AREA -->
+  <!-- CHAT -->
   <main id="chat" class="chat"></main>
 
-  <!-- TYPING INDICATOR -->
+  <!-- TYPING -->
   <div id="typing" class="typing hidden">
-    🇺🇸 AI is thinking...
+    AI is thinking...
   </div>
 
   <!-- INPUT -->
-  <footer class="input-bar">
-    <input id="input" type="text" placeholder="Ask about law, history, or anything..." />
-    <button onclick="sendMessage()">Send</button>
+  <footer class="inputArea">
+    <input id="input" type="text" placeholder="Ask about law, history, government..." />
+    <button id="sendBtn" onclick="sendMessage()">Send</button>
   </footer>
 
 </div>
