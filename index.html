@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Constitution AI Chat</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+
+<body>
+
+<div class="app">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="flag"></div>
+    <div>
+      <h1>🇺🇸 Constitution AI</h1>
+      <p>Powered by U.S. Constitution + Wikipedia</p>
+    </div>
+  </header>
+
+  <!-- CHAT AREA -->
+  <main id="chat" class="chat"></main>
+
+  <!-- TYPING INDICATOR -->
+  <div id="typing" class="typing hidden">
+    🇺🇸 AI is thinking...
+  </div>
+
+  <!-- INPUT -->
+  <footer class="input-bar">
+    <input id="input" type="text" placeholder="Ask about law, history, or anything..." />
+    <button onclick="sendMessage()">Send</button>
+  </footer>
+
+</div>
+
+</body>
+</html>
