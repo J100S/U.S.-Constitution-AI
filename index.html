@@ -11,6 +11,38 @@
 
 <body>
 
+<!-- 🔥 MOBILE REDIRECT (SAFE VERSION) -->
+<script>
+(function () {
+
+  function isMobileDevice() {
+    return (
+      window.innerWidth <= 768 ||
+      /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+    );
+  }
+
+  const path = window.location.pathname;
+
+  const onMobilePage = path.includes("mobile.html");
+  const onDesktopPage = path.includes("index.html");
+
+  // wait until page is ready (prevents flicker)
+  window.addEventListener("load", function () {
+
+    if (isMobileDevice() && !onMobilePage) {
+      window.location.href = "mobile.html";
+    }
+
+    if (!isMobileDevice() && !onDesktopPage && onMobilePage) {
+      window.location.href = "index.html";
+    }
+
+  });
+
+})();
+</script>
+
 <div class="bg"></div>
 
 <div class="app">
