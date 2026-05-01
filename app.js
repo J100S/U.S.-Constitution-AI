@@ -1,217 +1,202 @@
+// =========================
+// CHAT STATE (GPT-STYLE CONTEXT WINDOW)
+// =========================
+const chatHistory = []; // full conversation
+const memory = {
+  entity: null,
+  topic: null
+};
 
 // =========================
-// DOM ELEMENTS
+// DOM
 // =========================
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
-const typing = document.getElementById("typing");
+const sendBtn = document.getElementById("sendBtn");
 
 // =========================
-// CONSTITUTION MODEL
+// CHAT UI
 // =========================
-let wordMap = {};
-let trained = false;
-let constitutionText = "";
-
-// =========================
-// LOAD CONSTITUTION FILE
-// =========================
-async function loadConstitution() {
-  try {
-    const res = await fetch("constitution.txt");
-    constitutionText = await res.text();
-    buildModel(constitutionText);
-
-    addMessage("AI", "🇺🇸 Constitution AI online. Ask me about law, rights, or history.");
-  } catch (err) {
-    addMessage("AI", "Failed to load constitution.txt");
-    console.error(err);
-  }
-}
-
-// =========================
-// SIMPLE NLP MODEL
-// =========================
-function buildModel(text) {
-  const tokens = text.toLowerCase().split(/\W+/);
-
-  tokens.forEach(word => {
-    if (!word) return;
-    wordMap[word] = (wordMap[word] || 0) + 1;
-  });
-
-  trained = true;
-}
-
-// score relevance to constitution
-function scoreText(text) {
-  const tokens = text.toLowerCase().split(/\W+/);
-  let score = 0;
-
-  tokens.forEach(t => {
-    if (wordMap[t]) score += wordMap[t];
-    else score -= 0.25;
-  });
-
-  return score;
-}
-
-// =========================
-// WIKIPEDIA API
-// =========================
-
-// Step 1: search title
-async function wikiSearch(query) {
-  const url =
-    `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`;
-
-  const res = await fetch(url);
-  const data = await res.json();
-
-  return data?.query?.search?.[0]?.title || null;
-}
-
-// Step 2: get summary
-async function wikiSummary(title) {
-  const url =
-    `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
-
-  const res = await fetch(url);
-  const data = await res.json();
-
-  return data?.extract || "No Wikipedia summary found.";
-}
-
-// full wiki pipeline
-async function getWikipediaAnswer(query) {
-  try {
-    const title = await wikiSearch(query);
-    if (!title) return "No Wikipedia results found.";
-
-    const summary = await wikiSummary(title);
-    return `🌍 Wikipedia:\n${summary}`;
-  } catch (err) {
-    return "Wikipedia request failed.";
-  }
-}
-
-// =========================
-// CONSTITUTION RESPONSES
-// =========================
-function constitutionReply(text) {
-  const t = text.toLowerCase();
-
-  if (t.includes("rights")) {
-    return "🇺🇸 The Constitution guarantees rights such as speech, religion, press, assembly, and due process.";
-  }
-
-  if (t.includes("president")) {
-    return "🇺🇸 The President enforces federal law and leads the executive branch.";
-  }
-
-  if (t.includes("congress")) {
-    return "🇺🇸 Congress is the legislative branch made up of the House of Representatives and Senate.";
-  }
-
-  if (t.includes("amendment")) {
-    return "🇺🇸 Amendments are changes to the Constitution, such as the Bill of Rights.";
-  }
-
-  return "🇺🇸 This relates to U.S. constitutional structure and governance.";
-}
-
-// =========================
-// AI ROUTER (CORE LOGIC)
-// =========================
-async function getResponse(text) {
-  const lower = text.toLowerCase();
-  const score = scoreText(text);
-
-  // -------------------------
-  // FORCE CONSTITUTION MODE
-  // -------------------------
-  if (
-    lower.includes("constitution") ||
-    lower.includes("amendment") ||
-    lower.includes("rights") ||
-    lower.includes("congress") ||
-    lower.includes("president") ||
-    score > 25
-  ) {
-    return constitutionReply(text);
-  }
-
-  // -------------------------
-  // WIKIPEDIA MODE
-  // -------------------------
-  const wikiTriggers =
-    lower.startsWith("what is") ||
-    lower.startsWith("who is") ||
-    lower.startsWith("when") ||
-    lower.startsWith("where") ||
-    score < 5;
-
-  if (wikiTriggers) {
-    const cleaned = text
-      .replace(/what is/gi, "")
-      .replace(/who is/gi, "")
-      .replace(/tell me about/gi, "")
-      .trim();
-
-    return await getWikipediaAnswer(cleaned);
-  }
-
-  // fallback
-  return "Try asking about U.S. government, law, or general knowledge.";
-}
-
-// =========================
-// CHAT UI SYSTEM
-// =========================
-function addMessage(sender, text) {
-  const msg = document.createElement("div");
-  msg.classList.add("msg", sender === "You" ? "user" : "ai");
-  msg.innerText = text;
-
-  chat.appendChild(msg);
+function add(role, text){
+  const div = document.createElement("div");
+  div.className = "msg " + (role === "user" ? "user" : "ai");
+  div.innerText = text;
+  chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
 }
 
-// typing indicator
-function showTyping() {
-  typing.classList.remove("hidden");
+// =========================
+// CONTEXT WINDOW (GPT STYLE)
+// Keeps last N messages
+// =========================
+function addToHistory(role, text){
+  chatHistory.push({ role, text });
+
+  // keep last 12 messages (context window simulation)
+  if(chatHistory.length > 12){
+    chatHistory.shift();
+  }
 }
 
-function hideTyping() {
-  typing.classList.add("hidden");
+// =========================
+// BUILD CONTEXT STRING (LIKE GPT INPUT WINDOW)
+// =========================
+function buildContext(){
+  return chatHistory
+    .map(m => `${m.role.toUpperCase()}: ${m.text}`)
+    .join("\n");
+}
+
+// =========================
+// SIMPLE INTENT DETECTION
+// =========================
+function detectIntent(text){
+  const t = text.toLowerCase();
+
+  if(
+    t.includes("constitution") ||
+    t.includes("amendment") ||
+    t.includes("law") ||
+    t.includes("rights")
+  ){
+    return "constitution";
+  }
+
+  return "wiki";
+}
+
+// =========================
+// CONSTITUTION REASONING ENGINE (NOT JUST SEARCH)
+// =========================
+function constitutionalReasoning(query, context){
+
+  const q = query.toLowerCase();
+
+  // interpret First Amendment
+  if(q.includes("first amendment")){
+    return `
+🇺🇸 First Amendment (Explanation):
+
+This amendment protects five core freedoms:
+
+• Freedom of speech
+• Freedom of religion
+• Freedom of the press
+• Freedom of assembly
+• Right to petition the government
+
+🧠 Meaning:
+It prevents the government from controlling personal expression or belief systems.
+    `.trim();
+  }
+
+  // general constitutional reasoning
+  if(q.includes("rights")){
+    return `
+📜 Constitutional Rights:
+
+The Constitution protects individual liberties from government power.
+
+🧠 Interpretation:
+Rights are not granted by government — they are protected from government interference.
+    `.trim();
+  }
+
+  return null;
+}
+
+// =========================
+// WIKIPEDIA ENGINE (SAFE + FILTERED)
+// =========================
+async function wiki(query){
+
+  const res = await fetch(
+    `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`
+  );
+
+  const data = await res.json();
+  let results = data?.query?.search || [];
+
+  if(!results.length){
+    return "🌍 No Wikipedia result found.";
+  }
+
+  // filter bad results
+  results = results.filter(r => {
+    const t = r.title.toLowerCase();
+    return !t.includes("list of actors")
+        && !t.includes("disambiguation")
+        && !t.includes("may refer");
+  });
+
+  const best = results[0];
+
+  const res2 = await fetch(
+    `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(best.title)}`
+  );
+
+  const data2 = await res2.json();
+
+  return "🌍 " + (data2.extract || "").split(".").slice(0,2).join(".") + ".";
+}
+
+// =========================
+// GPT-STYLE CONTEXT AWARE AI ROUTER
+// =========================
+async function askAI(text){
+
+  // STEP 1: store message in context window
+  addToHistory("user", text);
+
+  const context = buildContext();
+  const intent = detectIntent(text.toLowerCase());
+
+  let response = null;
+
+  // STEP 2: Constitution reasoning FIRST (higher priority than wiki)
+  if(intent === "constitution"){
+    response = constitutionalReasoning(text, context);
+  }
+
+  // STEP 3: Wikipedia fallback
+  if(!response){
+    response = await wiki(text);
+  }
+
+  // STEP 4: store AI response in context
+  addToHistory("ai", response);
+
+  return response;
 }
 
 // =========================
 // SEND MESSAGE
 // =========================
-async function sendMessage() {
-  const text = input.value.trim();
-  if (!text) return;
+async function send(){
 
-  addMessage("You", text);
+  const text = input.value.trim();
+  if(!text) return;
+
+  add("user", text);
   input.value = "";
 
-  showTyping();
+  add("ai", "⏳ Thinking...");
 
-  const response = await getResponse(text);
+  const reply = await askAI(text);
 
-  hideTyping();
-  addMessage("AI", response);
+  add("ai", reply);
 }
 
 // =========================
-// ENTER KEY SUPPORT
+// EVENTS (SAFE BINDING)
 // =========================
-input.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") sendMessage();
+sendBtn.addEventListener("click", send);
+
+input.addEventListener("keydown", e=>{
+  if(e.key === "Enter") send();
 });
 
 // =========================
-// START APP
+// INIT
 // =========================
-loadConstitution();
+add("ai", "🇺🇸 GPT-Style Constitutional AI Online.");

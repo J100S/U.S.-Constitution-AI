@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Constitution AI</title>
-  <link rel="stylesheet" href="style.css"/>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🇺🇸 Constitutional AI</title>
+
+<link rel="stylesheet" href="style.css">
 </head>
 
 <body>
@@ -13,30 +14,21 @@
 
 <div class="app">
 
-  <!-- HEADER -->
-  <header class="header">
-    <div class="flag"></div>
-    <div>
-      <h1>Constitution AI</h1>
-      <p>U.S. Constitution + Wikipedia Intelligence System</p>
-    </div>
-  </header>
-
-  <!-- CHAT -->
-  <main id="chat" class="chat"></main>
-
-  <!-- TYPING -->
-  <div id="typing" class="typing hidden">
-    AI is thinking...
+  <div class="header">
+    🇺🇸 Constitutional AI
+    <span>• Auto Knowledge System</span>
   </div>
 
-  <!-- INPUT -->
-  <footer class="inputArea">
-    <input id="input" type="text" placeholder="Ask about law, history, government..." />
-    <button id="sendBtn" onclick="sendMessage()">Send</button>
-  </footer>
+  <div id="chat" class="chat"></div>
+
+  <div class="inputArea">
+    <input id="input" placeholder="Ask about US law, history, or government..." />
+    <button id="sendBtn">Send</button>
+  </div>
 
 </div>
+
+<script src="app.js"></script>
 
 </body>
 </html>
