@@ -2,46 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>🇺🇸 Constitutional AI</title>
 
 <link rel="stylesheet" href="style.css">
+
+<!-- PWA MANIFEST -->
+<link rel="manifest" href="manifest.json">
+
+<!-- Theme for mobile browsers -->
+<meta name="theme-color" content="#002868">
+
 </head>
 
 <body>
-
-<!-- 🔥 MOBILE REDIRECT (SAFE VERSION) -->
-<script>
-(function () {
-
-  function isMobileDevice() {
-    return (
-      window.innerWidth <= 768 ||
-      /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-    );
-  }
-
-  const path = window.location.pathname;
-
-  const onMobilePage = path.includes("mobile.html");
-  const onDesktopPage = path.includes("index.html");
-
-  // wait until page is ready (prevents flicker)
-  window.addEventListener("load", function () {
-
-    if (isMobileDevice() && !onMobilePage) {
-      window.location.href = "mobile.html";
-    }
-
-    if (!isMobileDevice() && !onDesktopPage && onMobilePage) {
-      window.location.href = "index.html";
-    }
-
-  });
-
-})();
-</script>
 
 <div class="bg"></div>
 
@@ -49,7 +24,7 @@
 
   <div class="header">
     🇺🇸 Constitutional AI
-    <span>Mobile Ready</span>
+    <span>PWA Mode</span>
   </div>
 
   <div id="chat" class="chat"></div>
@@ -62,6 +37,17 @@
 </div>
 
 <script src="app.js"></script>
+
+<script>
+/* =========================
+   SERVICE WORKER (PWA CORE)
+========================= */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js');
+  });
+}
+</script>
 
 </body>
 </html>
